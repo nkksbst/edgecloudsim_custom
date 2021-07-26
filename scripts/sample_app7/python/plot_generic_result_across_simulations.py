@@ -38,7 +38,7 @@ def plot_generic_result(row_offset, col_offset, y_label, app_type, calculate_per
     min_results = np.zeros((len(scenario_type), num_mobile_devices))
     max_results = np.zeros((len(scenario_type), num_mobile_devices))
 
-    list_output = glob.glob("/Users/monikkabusto/Desktop/src/EdgeCloudSim/scripts/sample_app7/output/done/*2021*")
+    list_output = glob.glob("/Users/monikkabusto/Desktop/src/EdgeCloudSim/scripts/sample_app7/output/done/*")
     for folder_path in list_output:
         for s in range(num_simulations):
             for i in range(len(scenario_type)):

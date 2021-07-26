@@ -23,7 +23,7 @@ public class QLearningAgent {
 
   public QLearningAgent() {
     actionSpace = Arrays.asList(0,1,2);
-    epsilon = 0.55;
+    epsilon = 0.85;
 	}
 
   public int chooseAction(Hashtable<String, List<Double>> qTable, String state){
