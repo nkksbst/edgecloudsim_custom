@@ -8,7 +8,7 @@ def get_configuration(arg_type):
     ret_val = None
 
     if(arg_type == 1):
-        ret_val = "/Users/monikkabusto/Desktop/src/EdgeCloudSim/scripts/sample_app7/output/20-07-2021_16-24/default_config"
+        ret_val = "/Users/monikkabusto/Desktop/src/EdgeCloudSim/scripts/sample_app7/output/26-07-2021_13-32/default_config"
     elif(arg_type == 2):
         ret_val = 60 * 10 #simulation time (in seconds)
     elif(arg_type == 3):
@@ -26,11 +26,11 @@ def get_configuration(arg_type):
     elif(arg_type == 9):
         ret_val= 'Number of Mobile Devices'# %Common text for x axis
     elif(arg_type == 10):
-        ret_val = 200 # %min number of mobile device
+        ret_val = 500 # %min number of mobile device
     elif(arg_type == 11):
         ret_val = 200# %step size of mobile device count
     elif(arg_type == 12):
-        ret_val = 800 #max number of mobile device
+        ret_val = 2600 #max number of mobile device
     elif(arg_type == 20):
         ret_val=1 #return 1 if graph is plotted colorful
     elif(arg_type == 21):

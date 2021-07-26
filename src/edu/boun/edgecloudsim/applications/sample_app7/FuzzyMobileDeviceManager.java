@@ -103,14 +103,17 @@ public class FuzzyMobileDeviceManager extends MobileDeviceManager {
 					networkModel.downloadStarted(task.getSubmittedLocation(), SimSettings.CLOUD_DATACENTER_ID);
 					SimLogger.getInstance().setDownloadDelay(task.getCloudletId(), WanDelay, NETWORK_DELAY_TYPES.WAN_DELAY);
 					schedule(getId(), WanDelay, RESPONSE_RECEIVED_BY_MOBILE_DEVICE, task);
+					SimManager.getInstance().addStatus(task.getCloudletId(), "completed");
 				}
 				else
 				{
+					SimManager.getInstance().addStatus(task.getCloudletId(), "failedDueToMobility_download");
 					SimLogger.getInstance().failedDueToMobility(task.getCloudletId(), CloudSim.clock());
 				}
 			}
 			else
 			{
+				SimManager.getInstance().addStatus(task.getCloudletId(), "failedDueToBandwidth_download");
 				SimLogger.getInstance().failedDueToBandwidth(task.getCloudletId(), CloudSim.clock(), NETWORK_DELAY_TYPES.WAN_DELAY);
 			}
 		}
@@ -144,14 +147,18 @@ public class FuzzyMobileDeviceManager extends MobileDeviceManager {
 					SimLogger.getInstance().setDownloadDelay(task.getCloudletId(), delay, delayType);
 
 					schedule(getId(), delay, nextEvent, task);
+					SimManager.getInstance().addStatus(task.getCloudletId(), "completed");
+
 				}
 				else
 				{
+					SimManager.getInstance().addStatus(task.getCloudletId(), "failedDueToMobility_download");
 					SimLogger.getInstance().failedDueToMobility(task.getCloudletId(), CloudSim.clock());
 				}
 			}
 			else
 			{
+				SimManager.getInstance().addStatus(task.getCloudletId(), "failedDueToBandwidth_download");
 				SimLogger.getInstance().failedDueToBandwidth(task.getCloudletId(), CloudSim.clock(), delayType);
 			}
 		}
@@ -345,12 +352,15 @@ public class FuzzyMobileDeviceManager extends MobileDeviceManager {
 			}
 			else{
 				//SimLogger.printLine("Task #" + task.getCloudletId() + " cannot assign to any VM");
+				SimManager.getInstance().addStatus(task.getCloudletId(), "rejectedDueToVMCapacity_upload");
 				SimLogger.getInstance().rejectedDueToVMCapacity(task.getCloudletId(), CloudSim.clock(), vmType);
+
 			}
 		}
 		else
 		{
 			//SimLogger.printLine("Task #" + task.getCloudletId() + " cannot assign to any VM");
+			SimManager.getInstance().addStatus(task.getCloudletId(), "rejectedDueToBandwidth_upload");
 			SimLogger.getInstance().rejectedDueToBandwidth(task.getCloudletId(), CloudSim.clock(), vmType, delayType);
 		}
 	}

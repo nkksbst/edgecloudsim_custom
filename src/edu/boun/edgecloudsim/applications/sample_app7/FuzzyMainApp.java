@@ -22,6 +22,7 @@ import edu.boun.edgecloudsim.core.SimManager;
 import edu.boun.edgecloudsim.core.SimSettings;
 import edu.boun.edgecloudsim.utils.SimLogger;
 import edu.boun.edgecloudsim.utils.SimUtils;
+import edu.boun.edgecloudsim.core.QTable;
 
 import com.opencsv.CSVReader;
 import com.opencsv.CSVWriter;
@@ -88,6 +89,16 @@ public class FuzzyMainApp {
 		SimLogger.printLine("Simulation started at " + now);
 		SimLogger.printLine("----------------------------------------------------------------------");
 
+		QTable qTable = new QTable(0.6, 0.1); // brand new table
+		try {
+				loadQTable(file, qTable); // populate Q table with values from previous simulations
+		}catch (Exception e)
+		{
+				SimLogger.printLine("Error loading Q Table");
+				e.printStackTrace();
+				System.exit(0);
+		}
+
 		for(int j=SS.getMinNumOfMobileDev(); j<=SS.getMaxNumOfMobileDev(); j+=SS.getMobileDevCounterSize())
 		{
 			for(int k=0; k<SS.getSimulationScenarios().length; k++) // TWO_TIER_WITH_EO
@@ -119,12 +130,29 @@ public class FuzzyMainApp {
 						ScenarioFactory sampleFactory = new FuzzyScenarioFactory(j,SS.getSimulationTime(), orchestratorPolicy, simScenario);
 
 						// Generate EdgeCloudSim Simulation Manager
-						SimManager manager = new SimManager(sampleFactory, j, simScenario, orchestratorPolicy);
+						SimManager manager = new SimManager(sampleFactory,
+																								j, simScenario,
+																								orchestratorPolicy, qTable);
 
 						// Start simulation
 						manager.startSimulation();
-						appendSimulationDivider(file, j);
+
+						qTable = manager.getQTableObject();
+
+						qTable.addData("Simulation: " + String.valueOf(j));
+
+						//appendSimulationDivider(file, j);
+/**
+						manager.experienceBuffer.experiences.forEach((key,val) ->
+												SimLogger.printLine(key.toString() + " : " +
+												val.get("currentState") + " " +
+												val.get("nextState") + " " +
+												val.get("status") + " " +
+												val.get("action")
+												));
+**/
 					}
+
 					catch (Exception e)
 					{
 						SimLogger.printLine("The simulation has been terminated due to an unexpected error");
@@ -143,37 +171,58 @@ public class FuzzyMainApp {
 		Date SimulationEndDate = Calendar.getInstance().getTime();
 		now = df.format(SimulationEndDate);
 		SimLogger.printLine("Simulation finished at " + now +  ". It took " + SimUtils.getTimeDifference(SimulationStartDate,SimulationEndDate));
+
+		try {
+			saveQTable(file, qTable);
+		}catch (Exception e)
+		{
+				SimLogger.printLine("Error saving Q Table");
+				e.printStackTrace();
+				System.exit(0);
+			}
+
 	}
-	public static void appendSimulationDivider(String file, int numDevices) throws IOException, CsvException {
-	  try {
-	      CSVReader reader = new CSVReader(new FileReader(file));
 
-	      Hashtable<String, List<Double>> qTable = new Hashtable<String, List<Double>>();
-	      List<String[]> r = reader.readAll();
-	      if(r.size() > 0) {
-	          r.forEach(x -> qTable.put(x[0],
-	                                      Arrays.asList(Double.parseDouble(x[1]),
-	                                                    Double.parseDouble(x[2]),
-	                                                    Double.parseDouble(x[3]))));
-	      }
-	      qTable.put("DEVICES" + String.valueOf(numDevices), Arrays.asList(0.0, 0.0,0.0));
 
-	      CSVWriter writer = new CSVWriter(new FileWriter(file));
-	      List<String[]> data = new ArrayList<String[]>();
-	      qTable.forEach((key, value) -> data.add(new String[] { key,
-	                                                             String.valueOf(value.get(0)),
-	                                                             String.valueOf(value.get(1)),
-	                                                             String.valueOf(value.get(2)) }));
-	      writer.writeAll(data);
-	      writer.close();
-	  } catch(IOException e) {
-				SimLogger.printLine("Error adding device divider");
+	public static void loadQTable(String file, QTable qTable) throws IOException, CsvException {
+		try {
+				CSVReader reader = new CSVReader(new FileReader(file));
+
+				Hashtable<String, List<Double>> table = qTable.getTable();
+				List<String[]> r = reader.readAll();
+				if(r.size() > 1) {
+						r.forEach(x -> table.put(x[0],
+																				Arrays.asList(Double.parseDouble(x[1]),
+																											Double.parseDouble(x[2]),
+																											Double.parseDouble(x[3]))));
+				}
+		} catch(IOException e) {
+				SimLogger.printLine("Error saving QTable");
 				e.printStackTrace();
 				System.exit(0);
 		} catch(CsvException e){
-			SimLogger.printLine("Error adding device divider");
+			SimLogger.printLine("Error saving QTable");
 			e.printStackTrace();
 			System.exit(0);
 		}
 	}
+	public static void saveQTable(String file, QTable qTable) throws IOException, CsvException {
+		try {
+				Hashtable<String, List<Double>> table = qTable.getTable();
+
+				CSVWriter writer = new CSVWriter(new FileWriter(file));
+				List<String[]> data = new ArrayList<String[]>();
+				table.forEach((key, value) -> data.add(new String[] { key,
+																															 String.valueOf(value.get(0)),
+																															 String.valueOf(value.get(1)),
+																															 String.valueOf(value.get(2)) }));
+				writer.writeAll(data);
+				writer.close();
+		} catch(IOException e) {
+				SimLogger.printLine("Error saving QTable");
+				e.printStackTrace();
+				System.exit(0);
+		}
+	}
+
 }

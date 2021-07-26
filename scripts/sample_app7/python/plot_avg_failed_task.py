@@ -1,4 +1,4 @@
-from plot_generic_result import plot_generic_result
+from plot_generic_result_across_simulations import plot_generic_result
 
 def plot_avg_failed_task():
 

@@ -1,11 +1,11 @@
 /*
  * Title:        EdgeCloudSim - Simulation Manager
- * 
- * Description: 
+ *
+ * Description:
  * SimManager is an singleton class providing many abstract classeses such as
  * Network Model, Mobility Model, Edge Orchestrator to other modules
- * Critical simulation related information would be gathered via this class 
- * 
+ * Critical simulation related information would be gathered via this class
+ *
  * Licence:      GPL - http://www.gnu.org/copyleft/gpl.html
  * Copyright (c) 2017, Bogazici University, Istanbul, Turkey
  */
@@ -14,6 +14,7 @@ package edu.boun.edgecloudsim.core;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Hashtable;
 
 import org.cloudbus.cloudsim.Host;
 import org.cloudbus.cloudsim.core.CloudSim;
@@ -38,7 +39,7 @@ public class SimManager extends SimEntity {
 	private static final int GET_LOAD_LOG = 2;
 	private static final int PRINT_PROGRESS = 3;
 	private static final int STOP_SIMULATION = 4;
-	
+
 	private String simScenario;
 	private String orchestratorPolicy;
 	private int numOfMobileDevice;
@@ -51,21 +52,28 @@ public class SimManager extends SimEntity {
 	private MobileServerManager mobileServerManager;
 	private LoadGeneratorModel loadGeneratorModel;
 	private MobileDeviceManager mobileDeviceManager;
-	
+	public ExperienceBuffer experienceBuffer;
+	public QTable qTable;
+
 	private static SimManager instance = null;
-	
-	public SimManager(ScenarioFactory _scenarioFactory, int _numOfMobileDevice, String _simScenario, String _orchestratorPolicy) throws Exception {
+
+	public SimManager(ScenarioFactory _scenarioFactory,
+										int _numOfMobileDevice,
+										String _simScenario,
+										String _orchestratorPolicy,
+										QTable _qTable) throws Exception {
 		super("SimManager");
 		simScenario = _simScenario;
 		scenarioFactory = _scenarioFactory;
 		numOfMobileDevice = _numOfMobileDevice;
 		orchestratorPolicy = _orchestratorPolicy;
+		qTable = _qTable;
 
 		SimLogger.print("Creating tasks...");
 		loadGeneratorModel = scenarioFactory.getLoadGeneratorModel();
 		loadGeneratorModel.initializeModel();
 		SimLogger.printLine("Done, ");
-		
+
 		SimLogger.print("Creating device locations...");
 		mobilityModel = scenarioFactory.getMobilityModel();
 		mobilityModel.initialize();
@@ -74,19 +82,19 @@ public class SimManager extends SimEntity {
 		//Generate network model
 		networkModel = scenarioFactory.getNetworkModel();
 		networkModel.initialize();
-		
+
 		//Generate edge orchestrator
 		edgeOrchestrator = scenarioFactory.getEdgeOrchestrator();
 		edgeOrchestrator.initialize();
-		
+
 		//Create Physical Servers
 		edgeServerManager = scenarioFactory.getEdgeServerManager();
 		edgeServerManager.initialize();
-		
+
 		//Create Physical Servers on cloud
 		cloudServerManager = scenarioFactory.getCloudServerManager();
 		cloudServerManager.initialize();
-		
+
 		//Create Physical Servers on mobile devices
 		mobileServerManager = scenarioFactory.getMobileServerManager();
 		mobileServerManager.initialize();
@@ -94,33 +102,36 @@ public class SimManager extends SimEntity {
 		//Create Client Manager
 		mobileDeviceManager = scenarioFactory.getMobileDeviceManager();
 		mobileDeviceManager.initialize();
-		
+
+		// Create Experience Buffer
+		experienceBuffer = new ExperienceBuffer();
+
 		instance = this;
 	}
-	
+
 	public static SimManager getInstance(){
 		return instance;
 	}
-	
+
 	/**
 	 * Triggering CloudSim to start simulation
 	 */
 	public void startSimulation() throws Exception{
 		//Starts the simulation
 		SimLogger.print(super.getName()+" is starting...");
-		
+
 		//Start Edge Datacenters & Generate VMs
 		edgeServerManager.startDatacenters();
 		edgeServerManager.createVmList(mobileDeviceManager.getId());
-		
+
 		//Start Edge Datacenters & Generate VMs
 		cloudServerManager.startDatacenters();
 		cloudServerManager.createVmList(mobileDeviceManager.getId());
-		
+
 		//Start Mobile Datacenters & Generate VMs
 		mobileServerManager.startDatacenters();
 		mobileServerManager.createVmList(mobileDeviceManager.getId());
-		
+
 		CloudSim.startSimulation();
 	}
 
@@ -131,15 +142,15 @@ public class SimManager extends SimEntity {
 	public String getOrchestratorPolicy(){
 		return orchestratorPolicy;
 	}
-	
+
 	public ScenarioFactory getScenarioFactory(){
 		return scenarioFactory;
 	}
-	
+
 	public int getNumOfMobileDevice(){
 		return numOfMobileDevice;
 	}
-	
+
 	public NetworkModel getNetworkModel(){
 		return networkModel;
 	}
@@ -147,19 +158,19 @@ public class SimManager extends SimEntity {
 	public MobilityModel getMobilityModel(){
 		return mobilityModel;
 	}
-	
+
 	public EdgeOrchestrator getEdgeOrchestrator(){
 		return edgeOrchestrator;
 	}
-	
+
 	public EdgeServerManager getEdgeServerManager(){
 		return edgeServerManager;
 	}
-	
+
 	public CloudServerManager getCloudServerManager(){
 		return cloudServerManager;
 	}
-	
+
 	public MobileServerManager getMobileServerManager(){
 		return mobileServerManager;
 	}
@@ -167,11 +178,54 @@ public class SimManager extends SimEntity {
 	public LoadGeneratorModel getLoadGeneratorModel(){
 		return loadGeneratorModel;
 	}
-	
+
 	public MobileDeviceManager getMobileDeviceManager(){
 		return mobileDeviceManager;
 	}
-	
+	public Hashtable<String, List<Double>> getQTable(){
+		return qTable.table;
+	}
+
+	public QTable getQTableObject(){
+		return qTable;
+	}
+
+	public void addCurrentState(Integer taskId, String state){
+		Hashtable<String, String> states = new Hashtable<String, String>();
+		states.put("currentState", state);
+		experienceBuffer.experiences.put(taskId, states);
+	}
+
+	public void addNextState(Integer taskId, String nextState){
+		Hashtable<String, String> states = experienceBuffer.experiences.get(taskId);
+		states.put("nextState", nextState);
+		experienceBuffer.experiences.put(taskId, states);
+
+		// update Q Table here
+		if(taskId > 1 && states.get("status") != null) {
+			qTable.updateTable(experienceBuffer.experiences.get(taskId));
+			//experienceBuffer.experiences.remove(taskId);
+		}
+	}
+
+	public void addAction(Integer taskId, Integer action){
+		Hashtable<String, String> states = experienceBuffer.experiences.get(taskId);
+		states.put("action", action.toString());
+		experienceBuffer.experiences.put(taskId, states);
+	}
+
+	public void addStatus(Integer taskId, String status){
+		Hashtable<String, String> states = experienceBuffer.experiences.get(taskId);
+		states.put("status", status);
+		experienceBuffer.experiences.put(taskId, states);
+
+		// update Q Table here
+		if(taskId > 1 && states.get("nextState") != null) {
+			qTable.updateTable(experienceBuffer.experiences.get(taskId));
+			//experienceBuffer.experiences.remove(taskId);
+		}
+	}
+
 	@Override
 	public void startEntity() {
 		int hostCounter=0;
@@ -183,7 +237,7 @@ public class SimManager extends SimEntity {
 				hostCounter++;
 			}
 		}
-		
+
 		for(int i = 0; i<SimSettings.getInstance().getNumOfCloudHost(); i++) {
 			mobileDeviceManager.submitVmList(cloudServerManager.getVmList(i));
 		}
@@ -192,17 +246,17 @@ public class SimManager extends SimEntity {
 			if(mobileServerManager.getVmList(i) != null)
 				mobileDeviceManager.submitVmList(mobileServerManager.getVmList(i));
 		}
-		
+
 		//Creation of tasks are scheduled here!
 		for(int i=0; i< loadGeneratorModel.getTaskList().size(); i++)
 			schedule(getId(), loadGeneratorModel.getTaskList().get(i).getStartTime(), CREATE_TASK, loadGeneratorModel.getTaskList().get(i));
-		
+
 		//Periodic event loops starts from here!
 		schedule(getId(), 5, CHECK_ALL_VM);
 		schedule(getId(), SimSettings.getInstance().getSimulationTime()/100, PRINT_PROGRESS);
 		schedule(getId(), SimSettings.getInstance().getVmLoadLogInterval(), GET_LOAD_LOG);
 		schedule(getId(), SimSettings.getInstance().getSimulationTime(), STOP_SIMULATION);
-		
+
 		SimLogger.printLine("Done.");
 	}
 
@@ -213,7 +267,7 @@ public class SimManager extends SimEntity {
 			case CREATE_TASK:
 				try {
 					TaskProperty edgeTask = (TaskProperty) ev.getData();
-					mobileDeviceManager.submitTask(edgeTask);						
+					mobileDeviceManager.submitTask(edgeTask);
 				} catch (Exception e) {
 					e.printStackTrace();
 					System.exit(1);
@@ -232,7 +286,7 @@ public class SimManager extends SimEntity {
 						edgeServerManager.getAvgUtilization(),
 						cloudServerManager.getAvgUtilization(),
 						mobileServerManager.getAvgUtilization());
-				
+
 				schedule(getId(), SimSettings.getInstance().getVmLoadLogInterval(), GET_LOAD_LOG);
 				break;
 			case PRINT_PROGRESS:

@@ -55,7 +55,7 @@ public class FuzzyEdgeOrchestrator extends EdgeOrchestrator {
 			fis1 = FIS.createFromString(FCL_definition.fclDefinition1, false);
 			fis2 = FIS.createFromString(FCL_definition.fclDefinition2, false);
 			fis3 = FIS.createFromString(FCL_definition.fclDefinition3, false);
-			agent = new QLearningAgent(0.1, 0.6, 0.1, outputFile);
+			agent = new QLearningAgent();
 		} catch (RecognitionException e) {
 			SimLogger.printLine("Cannot generate FIS! Terminating simulation...");
 			e.printStackTrace();
@@ -229,15 +229,27 @@ public class FuzzyEdgeOrchestrator extends EdgeOrchestrator {
 					result = SimSettings.GENERIC_EDGE_DEVICE_ID;
 			}
 			else if(policy.equals("Q_LEARNING")){
-					String state = String.valueOf(Math.round(nearestEdgeUtilization)) + '-' +
-												 String.valueOf(Math.round(bestRemoteEdgeUtilization)) + '-' +
-												 String.valueOf(Math.round(wanBW)) + '-' +
-												 String.valueOf(Math.round(manBW)) + '-' +
-												 String.valueOf(Math.round(wlanBW)) + '-' +
-												 String.valueOf(Math.round(task.getCloudletFileSize())) + '-' +
-												 String.valueOf(Math.round(task.getNumberOfPes()));
+					String state = String.valueOf(roundToNearest(nearestEdgeUtilization, 10)) + '-' +
+												 String.valueOf(roundToNearest(bestRemoteEdgeUtilization, 10)) + '-' +
+												 String.valueOf(roundToNearest(wanBW, 10)) + '-' +
+												 String.valueOf(roundToNearest(manBW, 10)) + '-' +
+												 String.valueOf(roundToNearest(wlanBW, 10)) + '-' +
+												 String.valueOf(roundToNearest(task.getCloudletFileSize(), 10000)) + '-' +
+												 String.valueOf(Math.round(task.getNumberOfPes())); //number of CPUs
+
+
+					SimManager.getInstance().addCurrentState(task.getCloudletId(), state);
+					if(task.getCloudletId() > 1) {
+						SimManager.getInstance().addNextState(task.getCloudletId() - 1, state);
+					}
+
+					Integer action = agent.chooseAction(SimManager.getInstance().getQTable(), state);
+					//SimLogger.printLine(state + " : "+ action.toString());
+					/**
+				  //SimLogger.printLine(state + " " + task.getCloudletId());
 					// choose action
 					Integer action = agent.chooseAction(state);
+					**/
 					if(action == 0){
 						// offload to cloud
 						result = SimSettings.CLOUD_DATACENTER_ID;
@@ -248,9 +260,8 @@ public class FuzzyEdgeOrchestrator extends EdgeOrchestrator {
 						// offload to remote edge server
 						result = bestRemoteEdgeHostIndex;
 					}
-					// save experience
-					agent.addQEntry(state);
-					agent.saveQTabletoCSV();
+
+					SimManager.getInstance().addAction(task.getCloudletId(), action);
 			}
 			else {
 				SimLogger.printLine("Unknown edge orchestrator policy! Terminating simulation...");
@@ -332,4 +343,8 @@ public class FuzzyEdgeOrchestrator extends EdgeOrchestrator {
 		// Nothing to do!
 	}
 
+	private double roundToNearest(double number, int factor){
+		int rounded = ((int)number/factor) * factor;
+		return (double) rounded;
+	}
 }
